@@ -65,7 +65,22 @@ async function run() {
       res.send(result)
     })
 
-   
+      //get a single class
+      app.get('/classes/:email', async (req,res)=>{
+        const email = req.params.email
+        const query ={'instructor.email':email}
+        const result = await classesCollection.find(query).toArray()
+        console.log(result);
+        res.send(result)
+      })
+
+   //delete class
+   app.delete('/classes/:id', async(req,res)=>{
+    const id = req.params.id
+    const query ={_id: new ObjectId(id)}
+    const result = await classesCollection.deleteOne(query)
+    res.send(result)
+  })
 
     app.post('/classes', async(req,res)=>{
       const classes = req.body;
@@ -86,11 +101,31 @@ async function run() {
       const update = await classesCollection.updateOne(query,updateDoc)
       res.send(update)
     })
+    //get bookings for guest
+    app.get('/bookings', async(req,res)=>{
+      const email = req.query.email
+      if(!email){
+        res.send([])
+      }
+      const query ={'student.email':email}
+      const result = await bookingsCollection.find(query).toArray()
+      res.send(result)
+    })
+
+
     //save a booking in database
     app.post('/bookings', async(req,res)=>{
       const booking = req.body;
       console.log(booking);
       const result = await bookingsCollection.insertOne(booking)
+      res.send(result)
+    })
+
+    //delete a booking
+    app.delete('/bookings/:id', async(req,res)=>{
+      const id = req.params.id
+      const query ={_id: new ObjectId(id)}
+      const result = await bookingsCollection.deleteOne(query)
       res.send(result)
     })
 
