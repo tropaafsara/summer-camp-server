@@ -1,12 +1,15 @@
 const express = require('express')
 const app = express()
+const morgan = require('morgan')
 const cors = require('cors')
+const jwt = require('jsonwebtoken')
 require('dotenv').config()
 const port = process.env.PORT || 9000
 
 
 app.use(cors())
 app.use(express.json())
+app.use(morgan('dev'))
 
 
 
@@ -21,11 +24,51 @@ const client = new MongoClient(uri, {
   }
 });
 
+
+//validate jwt
+const verifyJWT = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  console.log(authorization);
+  // if (!authorization) {
+  //   return res.status(401).send({ error: true, message: 'unauthorized access' })
+  // }
+  // // bearer token
+  const token = authorization.split(' ')[1]
+  console.log(token);
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res
+        .status(401)
+        .send({ error: true, message: 'unauthorized access' })
+    }
+    req.decoded = decoded
+    next()
+  })
+}
+
+
 async function run() {
     
     const usersCollection = client.db('summerCampDB').collection('users')
     const classesCollection = client.db('summerCampDB').collection('classes')
     const bookingsCollection = client.db('summerCampDB').collection('bookings')
+
+    //generate jwt token
+    app.post('/jwt', (req, res) => {
+      const email = req.body
+      const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: '7d',
+      })
+      
+      console.log(token);
+      res.send({token})
+    })
+
+    app.get('/users', async (req,res)=>{
+      const result = await usersCollection.find().toArray()
+      res.send(result)
+    })
 
     //put method is used to avoid duplicate user / to solve dupliocate user issue
     app.put('/users/:email', async(req,res)=>{//we've used put cz if there's any data in database put method finds it by email, if the user doesn't exist then it inserts new user  
@@ -34,7 +77,7 @@ async function run() {
         const query = {email: email};
         const option = {upsert:true};//unique user will be stored in db
         const updateDoc = {
-            $set: user //user from the body is set here
+            $set: user
         }
         const result = await usersCollection.updateOne(query, updateDoc, option)
         console.log(result);
@@ -48,6 +91,39 @@ async function run() {
       const result = await usersCollection.findOne(query)
       console.log(result);
       res.send(result)
+    })
+
+
+//making admin
+    app.patch('/users/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'admin'
+        },
+      };
+
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+
+    })
+
+//making instructor
+    app.patch('/users/instructor/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'instructor'
+        },
+      };
+
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+
     })
 
 
@@ -65,9 +141,14 @@ async function run() {
       res.send(result)
     })
 
-      //get a single class
-      app.get('/classes/:email', async (req,res)=>{
+      //get all classes for instructor
+      app.get('/classes/:email', verifyJWT, async (req,res)=>{
+        const decodedEmail = req.decoded.email
+        console.log(decodedEmail);
         const email = req.params.email
+        if(email!== decodedEmail){
+          return res.status(403).send({error: true, message:'Unauthorzed'})
+        }
         const query ={'instructor.email':email}
         const result = await classesCollection.find(query).toArray()
         console.log(result);
@@ -101,7 +182,17 @@ async function run() {
       const update = await classesCollection.updateOne(query,updateDoc)
       res.send(update)
     })
-    //get bookings for guest
+    //get bookings for student
+    app.get('/bookings/instructor', async(req,res)=>{
+      const email = req.query.email
+      if(!email){
+        res.send([])
+      }
+      const query ={instructor:email}
+      const result = await bookingsCollection.find(query).toArray()
+      res.send(result)
+    })
+    //get bookings for instructor
     app.get('/bookings', async(req,res)=>{
       const email = req.query.email
       if(!email){
