@@ -5,6 +5,7 @@ const cors = require('cors')
 const jwt = require('jsonwebtoken')
 require('dotenv').config()
 const port = process.env.PORT || 9000
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY)
 
 
 app.use(cors())
@@ -53,6 +54,8 @@ async function run() {
     const usersCollection = client.db('summerCampDB').collection('users')
     const classesCollection = client.db('summerCampDB').collection('classes')
     const bookingsCollection = client.db('summerCampDB').collection('bookings')
+
+    
 
     //generate jwt token
     app.post('/jwt', (req, res) => {
@@ -203,12 +206,49 @@ async function run() {
       res.send(result)
     })
 
+    //GENERATE CLIENT SECRET
+    // create payment intent
+    app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+      const { price } = req.body
+      const amount = parseFloat(price) * 100
+      if (!price) return
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card'],
+      })
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      })
+    })
+
 
     //save a booking in database
     app.post('/bookings', async(req,res)=>{
       const booking = req.body;
       console.log(booking);
       const result = await bookingsCollection.insertOne(booking)
+
+      if (result.insertedId) {
+        // Send confirmation email to guest
+        sendMail(
+          {
+            subject: 'Booking Successful!',
+            message: `Booking Id: ${result?.insertedId}, TransactionId: ${booking.transactionId}`,
+          },
+          booking?.student?.email
+        )
+        // Send confirmation email to host
+        sendMail(
+          {
+            subject: 'Your room got booked!',
+            message: `Booking Id: ${result?.insertedId}, TransactionId: ${booking.transactionId}. Check dashboard for more info`,
+          },
+          booking?.host
+        )
+      }
+
       res.send(result)
     })
 
