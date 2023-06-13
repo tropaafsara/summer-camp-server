@@ -206,12 +206,11 @@ async function run() {
     const classes = req.body;
     console.log(classes);
     classes.seats = parseFloat(classes.seats);
+    classes.totalStudents = 0;
     const update = {
       $inc: { seats: -1, totalStudents: 1 }
     };
     const result = await classesCollection.insertOne(classes)
-    // await classesCollection.updateOne({ _id: new ObjectId(classes.classId) }, update);
-    // await classesCollection.updateOne({ _id: result.insertedId }, update);
     res.send(result)
   })
 
@@ -302,7 +301,7 @@ async function run() {
   })
 
 
-  
+
 
 
   //delete a booking
