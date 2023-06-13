@@ -8,7 +8,13 @@ const port = process.env.PORT || 9000
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY)
 
 
-app.use(cors())
+// app.use(cors())
+const corsOptions = {
+  origin: '*',
+  credentials: true,
+  optionSuccessStatus: 200,
+}
+app.use(cors(corsOptions))
 app.use(express.json())
 app.use(morgan('dev'))
 
@@ -54,6 +60,7 @@ async function run() {
     const usersCollection = client.db('summerCampDB').collection('users')
     const classesCollection = client.db('summerCampDB').collection('classes')
     const bookingsCollection = client.db('summerCampDB').collection('bookings')
+    const selectedClassesCollection = client.db('summerCampDB').collection('selectedClasses')
 
     
 
@@ -68,12 +75,32 @@ async function run() {
       res.send({token})
     })
 
+    app.post('/selectedClasses', async(req,res)=>{
+      const cls = req.body;
+      console.log(cls);
+      const result = await selectedClassesCollection.insertOne(cls)
+      res.send(result)
+    })
+
+    //selected class apis
+    app.get('/selectedClasses', async(req,res)=>{
+      const email = req.query.email
+      if(!email){
+        res.send([])
+      }
+      const query ={email:email}
+      const result = await selectedClassesCollection.find(query).toArray()
+      res.send(result)
+    })
+
+   
+
     app.get('/users', async (req,res)=>{
       const result = await usersCollection.find().toArray()
       res.send(result)
     })
 
-    //put method is used to avoid duplicate user / to solve dupliocate user issue
+    //put method is used to avoid duplicate user / to solve duplicate user issue
     app.put('/users/:email', async(req,res)=>{//we've used put cz if there's any data in database put method finds it by email, if the user doesn't exist then it inserts new user  
         const email = req.params.email; //receive email from parameter
         const user = req.body;
@@ -172,6 +199,11 @@ async function run() {
       const result = await classesCollection.insertOne(classes)
       res.send(result)
     })
+
+    
+
+    
+
     //update class booking status
     app.patch('/classes/status/:id',async(req,res)=>{
       const id = req.params.id;
@@ -230,25 +262,6 @@ async function run() {
       console.log(booking);
       const result = await bookingsCollection.insertOne(booking)
 
-      if (result.insertedId) {
-        // Send confirmation email to guest
-        sendMail(
-          {
-            subject: 'Booking Successful!',
-            message: `Booking Id: ${result?.insertedId}, TransactionId: ${booking.transactionId}`,
-          },
-          booking?.student?.email
-        )
-        // Send confirmation email to host
-        sendMail(
-          {
-            subject: 'Your room got booked!',
-            message: `Booking Id: ${result?.insertedId}, TransactionId: ${booking.transactionId}. Check dashboard for more info`,
-          },
-          booking?.host
-        )
-      }
-
       res.send(result)
     })
 
@@ -260,9 +273,18 @@ async function run() {
       res.send(result)
     })
 
+     //delete selected class
+   app.delete('/selectedClasses/:id', async(req,res)=>{
+    const id = req.params.id
+    const query ={_id: id}
+    console.log(query);
+    const result = await selectedClassesCollection.deleteOne(query)
+    res.send(result)
+  })
+
 
   try {
-    await client.connect();
+    // await client.connect();
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
