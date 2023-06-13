@@ -193,12 +193,31 @@ async function run() {
     res.send(result)
   })
 
+
+
+
+
+
+
+
+
+
   app.post('/classes', async (req, res) => {
     const classes = req.body;
     console.log(classes);
+    classes.seats = parseFloat(classes.seats);
+    const update = {
+      $inc: { seats: -1, totalStudents: 1 }
+    };
     const result = await classesCollection.insertOne(classes)
+    // await classesCollection.updateOne({ _id: new ObjectId(classes.classId) }, update);
+    // await classesCollection.updateOne({ _id: result.insertedId }, update);
     res.send(result)
   })
+
+
+
+  
 
 
 
@@ -277,10 +296,14 @@ async function run() {
       $inc: { seats: -1, totalStudents: 1 }
     };
     const result = await bookingsCollection.insertOne(booking)
-    await bookingsCollection.findOneAndUpdate({ _id: result.insertedId }, update);
+    await classesCollection.updateOne({ _id: new ObjectId(booking.classId) }, update);
 
     res.send(result)
   })
+
+
+  
+
 
   //delete a booking
   app.delete('/bookings/:id', async (req, res) => {
