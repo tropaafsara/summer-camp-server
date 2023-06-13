@@ -1,6 +1,5 @@
 const express = require('express')
 const app = express()
-const morgan = require('morgan')
 const cors = require('cors')
 const jwt = require('jsonwebtoken')
 require('dotenv').config()
@@ -16,7 +15,8 @@ const corsOptions = {
 }
 app.use(cors(corsOptions))
 app.use(express.json())
-app.use(morgan('dev'))
+app.options("", cors(corsOptions))
+
 
 
 
@@ -217,6 +217,11 @@ async function run() {
       const update = await classesCollection.updateOne(query,updateDoc)
       res.send(update)
     })
+
+
+
+
+
     //get bookings for student
     app.get('/bookings/instructor', async(req,res)=>{
       const email = req.query.email
@@ -238,6 +243,13 @@ async function run() {
       res.send(result)
     })
 
+
+
+
+
+
+
+    
     //GENERATE CLIENT SECRET
     // create payment intent
     app.post('/create-payment-intent', verifyJWT, async (req, res) => {
