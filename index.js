@@ -200,6 +200,39 @@ async function run() {
   res.send(result);
 
 })
+   //deny a class
+ app.patch('/classes/deny/:id', async (req, res) => {
+  const id = req.params.id;
+  console.log(id);
+  const filter = { _id: new ObjectId(id) };
+  const updateDoc = {
+    $set: {
+      status: 'denied'
+    },
+  };
+
+  const result = await classesCollection.updateOne(filter, updateDoc);
+  res.send(result);
+
+})
+
+
+   //deny a class
+   app.patch('/classes/feedback/:id', async (req, res) => {
+    const id = req.params.id;
+    const feedback = req.body.feedback;
+    console.log(id);
+    const filter = { _id: new ObjectId(id) };
+    const updateDoc = {
+      $set: {
+        feedback: feedback
+      },
+    };
+  
+    const result = await classesCollection.updateOne(filter, updateDoc);
+    res.send(result);
+  
+  })
 
 
 
